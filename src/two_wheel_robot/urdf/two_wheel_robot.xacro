@@ -5,8 +5,12 @@
   <xacro:property name="base_height" value="0.1" />
   <xacro:property name="wheel_radius" value="0.1" />
   <xacro:property name="wheel_thickness" value="0.1" />
+  <xacro:property name="lidar_radius" value="0.1" />
+  <xacro:property name="lidar_height" value="0.1" />
   <xacro:property name="base_mass" value="10.0" />
   <xacro:property name="wheel_mass" value="1.0" />
+  <xacro:property name="lidar_mass" value="0.5" />
+  <xacro:property name="imu_mass" value="0.1" />
 
   <link name="base_link">
     <visual>
@@ -38,8 +42,8 @@
       <geometry>
         <cylinder radius="${wheel_radius}" length="${wheel_thickness}" />
       </geometry>
-      <material name="gray">
-        <color rgba="0.6 0.6 0.6 1" />
+      <material name="black">
+        <color rgba="0.2 0.2 0.2 1" />
       </material>
     </visual>
     <collision>
@@ -62,8 +66,8 @@
       <geometry>
         <cylinder radius="${wheel_radius}" length="${wheel_thickness}" />
       </geometry>
-      <material name="gray">
-        <color rgba="0.6 0.6 0.6 1" />
+      <material name="black">
+        <color rgba="0.2 0.2 0.2 1" />
       </material>
     </visual>
     <collision>
@@ -80,20 +84,232 @@
     </inertial>
   </link>
 
-  <joint name="right_wheel_joint" type="revolute">
+  <link name="lidar_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <cylinder radius="${lidar_radius}" length="${lidar_height}" />
+      </geometry>
+      <material name="blue">
+        <color rgba="0.0 0.0 0.8 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <cylinder radius="${lidar_radius}" length="${lidar_height}" />
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="${lidar_mass}" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <inertia ixx="${lidar_mass*(3*lidar_radius*lidar_radius + lidar_height*lidar_height)/12}" 
+               iyy="${lidar_mass*(3*lidar_radius*lidar_radius + lidar_height*lidar_height)/12}" 
+               izz="${lidar_mass*lidar_radius*lidar_radius/2}"
+               ixy="0.0" ixz="0.0" iyz="0.0" />
+    </inertial>
+  </link>
+
+  <link name="imu_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.05 0.05 0.02" />
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0.0 0.0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <box size="0.05 0.05 0.02" />
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="${imu_mass}" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001"
+               ixy="0.0" ixz="0.0" iyz="0.0" />
+    </inertial>
+  </link>
+
+  <joint name="right_wheel_joint" type="continuous">
     <parent link="base_link" />
     <child link="right_wheel_link" />
-    <origin xyz="0 -${base_radius} ${wheel_radius}" rpy="0 0 0" />
+    <origin xyz="0 -${base_radius + wheel_thickness/2} ${wheel_radius}" rpy="0 0 0" />
     <axis xyz="0 1 0" />
     <limit lower="-3.1416" upper="3.1416" effort="5" velocity="10" />
   </joint>
 
-  <joint name="left_wheel_joint" type="revolute">
+  <joint name="left_wheel_joint" type="continuous">
     <parent link="base_link" />
     <child link="left_wheel_link" />
-    <origin xyz="0 ${base_radius} ${wheel_radius}" rpy="0 0 0" />
+    <origin xyz="0 ${base_radius + wheel_thickness/2} ${wheel_radius}" rpy="0 0 0" />
     <axis xyz="0 1 0" />
     <limit lower="-3.1416" upper="3.1416" effort="5" velocity="10" />
   </joint>
+
+  <joint name="lidar_joint" type="fixed">
+    <parent link="base_link" />
+    <child link="lidar_link" />
+    <origin xyz="0 0 ${wheel_radius + base_height/2 + lidar_height/2}" rpy="0 0 0" />
+  </joint>
+
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link" />
+    <child link="imu_link" />
+    <origin xyz="0 0 ${wheel_radius + base_height/2}" rpy="0 0 0" />
+  </joint>
+
+  <gazebo reference="lidar_link">
+    <sensor type="ray" name="lidar_sensor">
+      <pose>0 0 0 0 0 0</pose>
+      <visualize>true</visualize>
+      <update_rate>10</update_rate>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>360</samples>
+            <resolution>1</resolution>
+            <min_angle>-3.14159</min_angle>
+            <max_angle>3.14159</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.10</min>
+          <max>10.0</max>
+          <resolution>0.01</resolution>
+        </range>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </ray>
+      <plugin name="gazebo_ros_lidar_controller" filename="libgazebo_ros_ray_sensor.so">
+        <ros>
+          <namespace>/</namespace>
+          <remapping>~/out:=scan_raw</remapping>
+        </ros>
+        <output_type>sensor_msgs/LaserScan</output_type>
+        <frame_name>lidar_link</frame_name>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <gazebo reference="imu_link">
+    <gravity>true</gravity>
+    <sensor name="imu_sensor" type="imu">
+      <always_on>true</always_on>
+      <update_rate>100</update_rate>
+      <visualize>true</visualize>
+      <topic>imu</topic>
+      <plugin filename="libgazebo_ros_imu_sensor.so" name="imu_plugin">
+        <ros>
+          <namespace>/</namespace>
+          <remapping>~/out:=imu</remapping>
+        </ros>
+        <initial_orientation_as_reference>false</initial_orientation_as_reference>
+        <frame_name>imu_link</frame_name>
+      </plugin>
+      <imu>
+        <angular_velocity>
+          <x>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>2e-4</stddev>
+            </noise>
+          </x>
+          <y>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>2e-4</stddev>
+            </noise>
+          </y>
+          <z>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>2e-4</stddev>
+            </noise>
+          </z>
+        </angular_velocity>
+        <linear_acceleration>
+          <x>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.7e-2</stddev>
+            </noise>
+          </x>
+          <y>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.7e-2</stddev>
+            </noise>
+          </y>
+          <z>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.7e-2</stddev>
+            </noise>
+          </z>
+        </linear_acceleration>
+      </imu>
+    </sensor>
+  </gazebo>
+
+  <gazebo>
+    <plugin name="differential_drive_controller" filename="libgazebo_ros_diff_drive.so">
+      <ros>
+        <namespace>/</namespace>
+      </ros>
+      <update_rate>50</update_rate>
+      <left_joint>left_wheel_joint</left_joint>
+      <right_joint>right_wheel_joint</right_joint>
+      <wheel_separation>${2*(base_radius + wheel_thickness/2)}</wheel_separation>
+      <wheel_diameter>${2*wheel_radius}</wheel_diameter>
+      <max_wheel_torque>20</max_wheel_torque>
+      <max_wheel_acceleration>1.0</max_wheel_acceleration>
+      <command_topic>cmd_vel</command_topic>
+      <publish_odom>true</publish_odom>
+      <publish_odom_tf>true</publish_odom_tf>
+      <publish_wheel_tf>true</publish_wheel_tf>
+      <odometry_topic>odom</odometry_topic>
+      <odometry_frame>odom</odometry_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+    </plugin>
+  </gazebo>
+
+  <gazebo reference="base_link">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+
+  <gazebo reference="right_wheel_link">
+    <material>Gazebo/Black</material>
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+    <kp>1000000.0</kp>
+    <kd>100.0</kd>
+    <minDepth>0.001</minDepth>
+    <maxVel>1.0</maxVel>
+  </gazebo>
+
+  <gazebo reference="left_wheel_link">
+    <material>Gazebo/Black</material>
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+    <kp>1000000.0</kp>
+    <kd>100.0</kd>
+    <minDepth>0.001</minDepth>
+    <maxVel>1.0</maxVel>
+  </gazebo>
+
+  <gazebo reference="lidar_link">
+    <material>Gazebo/Blue</material>
+  </gazebo>
+
+  <gazebo reference="imu_link">
+    <material>Gazebo/Red</material>
+  </gazebo>
 
 </robot>
