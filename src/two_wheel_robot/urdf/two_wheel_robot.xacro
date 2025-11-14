@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="two_wheel_robot">
+
+  <xacro:property name="base_radius" value="0.3"/>
+  <xacro:property name="base_height" value="0.1"/>
+  <xacro:property name="wheel_radius" value="0.1"/>
+  <xacro:property name="wheel_thickness" value="0.1"/>
+  <xacro:property name="base_mass" value="10.0"/>
+  <xacro:property name="wheel_mass" value="1.0"/>
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <cylinder radius="${base_radius}" length="${base_height}"/>
+      </geometry>
+      <material name="gray">
+        <color rgba="0.5 0.5 0.5 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="${base_radius}" length="${base_height}"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <mass value="${base_mass}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.1" ixy="0.0" ixz="0.0" iyy="0.1" iyz="0.0" izz="0.1"/>
+    </inertial>
+  </link>
+
+  <link name="right_wheel_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_thickness}"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <link name="left_wheel_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder radius="${wheel_radius}" length="${wheel_thickness}"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+  </link>
+
+  <joint name="right_wheel_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="right_wheel_link"/>
+    <origin xyz="0 -${base_radius} 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="5" velocity="10"/>
+  </joint>
+
+  <joint name="left_wheel_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="left_wheel_link"/>
+    <origin xyz="0 ${base_radius} 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="5" velocity="10"/>
+  </joint>
+
+</robot>
